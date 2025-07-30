@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useUser } from "@stackframe/stack";
 import { SignIn } from "@stackframe/stack";
@@ -8,7 +8,10 @@ interface AuthWrapperProps {
   isSignupEnabled?: boolean;
 }
 
-export function AuthWrapper({ children, isSignupEnabled = true }: AuthWrapperProps) {
+export function AuthWrapper({
+  children,
+  isSignupEnabled = true,
+}: AuthWrapperProps) {
   const user = useUser();
 
   if (!user) {
@@ -18,7 +21,7 @@ export function AuthWrapper({ children, isSignupEnabled = true }: AuthWrapperPro
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">Welcome to Write</h1>
             <p className="text-muted-foreground">
-              The last writing software you&apos;ll ever need
+              The last writing software {"you'll"} ever need
             </p>
           </div>
           <SignIn />

@@ -2,36 +2,25 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { DocumentList } from "@/components/document-list";
 import { SidebarDocumentList } from "@/components/sidebar-document-list";
-import { ProjectSelector } from "@/components/project-selector";
-import { UserMenu } from "@/components/user-menu";
 import { MobileModal } from "@/components/mobile-modal";
-import { MobileMenu } from "@/components/mobile-menu";
+import { WritingStats } from "@/components/writing-stats";
+import { EditorHeader } from "@/components/editor-header";
+import { MobileHeader } from "@/components/mobile-header";
+import { HelpOverlay } from "@/components/help-overlay";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useDocumentOperations } from "@/hooks/use-document-operations";
 import {
-  saveDocument,
   getProjectDocuments,
   getProjects,
   getDocument,
 } from "@/lib/actions";
 import { loadPreferences, savePreference } from "@/lib/preferences";
 import type { Document, Project } from "@/lib/database";
-import {
-  Save,
-  FileText,
-  Eye,
-  EyeOff,
-  Download,
-  Upload,
-  HelpCircle,
-  Plus,
-  FolderOpen,
-  Focus,
-  X,
-} from "lucide-react";
+import { X } from "lucide-react";
 
-interface WritingStats {
+interface WritingStatsData {
   words: number;
   characters: number;
   paragraphs: number;
@@ -53,8 +42,7 @@ export function WritingEditor() {
     null,
   );
   const [activeProject, setActiveProject] = useState<Project | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [stats, setStats] = useState<WritingStats>({
+  const [stats, setStats] = useState<WritingStatsData>({
     words: 0,
     characters: 0,
     paragraphs: 0,
@@ -62,10 +50,25 @@ export function WritingEditor() {
   });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const previousContentRef = useRef<string>("");
 
-  const calculateStats = (text: string): WritingStats => {
+  const {
+    isSaving,
+    fileInputRef,
+    saveToDatabase,
+    handleExport,
+    handleLoad,
+    triggerFileInput,
+  } = useDocumentOperations({
+    content,
+    fileName,
+    currentDocumentId,
+    activeProject,
+    setLastSaved,
+    setCurrentDocumentId,
+  });
+
+  const calculateStats = (text: string): WritingStatsData => {
     const words = text.trim() ? text.trim().split(/\s+/).length : 0;
     const characters = text.length;
     const paragraphs = text.trim() ? text.split(/\n\s*\n/).length : 0;
@@ -77,6 +80,17 @@ export function WritingEditor() {
   useEffect(() => {
     setStats(calculateStats(content));
   }, [content]);
+
+  useKeyboardShortcuts({
+    showStats,
+    showDocumentsList,
+    isDistractionFree,
+    onSave: saveToDatabase,
+    onLoad: triggerFileInput,
+    onToggleStats: () => setShowStats(!showStats),
+    onToggleDocumentsList: () => setShowDocumentsList(!showDocumentsList),
+    onToggleDistractionFree: () => setIsDistractionFree(!isDistractionFree),
+  });
 
   useEffect(() => {
     // Save only when content changes, not on a timer
@@ -90,7 +104,7 @@ export function WritingEditor() {
       saveToDatabase();
     }
     previousContentRef.current = content;
-  }, [content, fileName, currentDocumentId, activeProject, isSaving]);
+  }, [content, fileName, currentDocumentId, activeProject, isSaving, saveToDatabase]);
 
   useEffect(() => {
     // Load preferences first
@@ -192,58 +206,6 @@ export function WritingEditor() {
     restoreSavedState();
   }, []); // Only run once on mount
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + S to save
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      }
-
-      // Cmd/Ctrl + O to load
-      if ((e.metaKey || e.ctrlKey) && e.key === "o") {
-        e.preventDefault();
-        fileInputRef.current?.click();
-      }
-
-      // Cmd/Ctrl + Shift + S to toggle stats
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "S") {
-        e.preventDefault();
-        setShowStats(!showStats);
-      }
-
-      // Cmd/Ctrl + Shift + D to toggle documents
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "D") {
-        e.preventDefault();
-        setShowDocumentsList(!showDocumentsList);
-      }
-
-      // Cmd/Ctrl + Shift + F to toggle distraction-free mode
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "F") {
-        e.preventDefault();
-        setIsDistractionFree(!isDistractionFree);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [showStats, showDocumentsList, isDistractionFree]);
-
-  const handleSave = async () => {
-    await saveToDatabase();
-  };
-
-  const handleExport = () => {
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${fileName}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
 
   const handleNewDocument = () => {
     setContent("");
@@ -287,205 +249,58 @@ export function WritingEditor() {
     }
   };
 
-  const handleLoad = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        setContent(text);
-        setFileName(file.name.replace(/\.[^/.]+$/, ""));
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const saveToDatabase = async () => {
-    if (!content.trim() || !activeProject) return;
-
-    setIsSaving(true);
-    try {
-      const document = await saveDocument(
-        fileName,
-        content,
-        activeProject.id,
-        currentDocumentId || undefined,
-      );
-
-      if (!currentDocumentId) {
-        setCurrentDocumentId(document.id);
-      }
-      setLastSaved(new Date());
-    } catch (error) {
-      console.error("Failed to save document:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const handleLoadFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    handleLoad(event, (content, fileName) => {
+      setContent(content);
+      setFileName(fileName);
+    });
   };
 
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Desktop Header */}
       {!isDistractionFree && (
-        <div className="hidden lg:flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex items-center gap-4">
-            <ProjectSelector
-              activeProject={activeProject}
-              onProjectSelect={handleProjectSelect}
-            />
-            <div className="h-6 w-px bg-border" />
-            <input
-              type="text"
-              value={fileName}
-              onChange={(e) => setFileName(e.target.value)}
-              className="text-lg font-medium bg-transparent border-none outline-none focus:underline max-w-xs"
-            />
-            {lastSaved && (
-              <span className="text-sm text-muted-foreground">
-                Saved at {formatTime(lastSaved)}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <UserMenu />
-            <ThemeToggle />
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleNewDocument}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              New
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDocumentsList(!showDocumentsList)}
-              className="flex items-center gap-2"
-            >
-              <FolderOpen className="h-4 w-4" />
-              Documents
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowStats(!showStats)}
-              className="flex items-center gap-2"
-            >
-              {showStats ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-              Stats
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Load
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSave}
-              className="flex items-center gap-2"
-            >
-              <Save className="h-4 w-4" />
-              {"Save"}
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleExport}
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsDistractionFree(!isDistractionFree)}
-              className="flex items-center gap-2"
-            >
-              <Focus className="h-4 w-4" />
-              Focus
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowHelp(!showHelp)}
-            >
-              <HelpCircle className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <EditorHeader
+          activeProject={activeProject}
+          onProjectSelect={handleProjectSelect}
+          fileName={fileName}
+          setFileName={setFileName}
+          lastSaved={lastSaved}
+          showStats={showStats}
+          setShowStats={setShowStats}
+          showDocumentsList={showDocumentsList}
+          setShowDocumentsList={setShowDocumentsList}
+          isDistractionFree={isDistractionFree}
+          setIsDistractionFree={setIsDistractionFree}
+          showHelp={showHelp}
+          setShowHelp={setShowHelp}
+          onNewDocument={handleNewDocument}
+          onLoad={triggerFileInput}
+          onSave={saveToDatabase}
+          onExport={handleExport}
+        />
       )}
 
       {/* Mobile Header */}
       {!isDistractionFree && (
-        <div className="lg:hidden flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex items-center gap-2">
-            <MobileMenu
-              activeProject={activeProject}
-              onProjectSelect={handleProjectSelect}
-              showStats={showStats}
-              showDocumentsList={showDocumentsList}
-              onToggleStats={() => setShowMobileStats(true)}
-              onToggleDocuments={() => setShowMobileDocuments(true)}
-              onNewDocument={handleNewDocument}
-              onLoad={() => fileInputRef.current?.click()}
-              onSave={handleSave}
-              onExport={handleExport}
-              onToggleFocus={() => setIsDistractionFree(!isDistractionFree)}
-              onShowHelp={() => setShowHelp(!showHelp)}
-            />
-            <input
-              type="text"
-              value={fileName}
-              onChange={(e) => setFileName(e.target.value)}
-              className="text-base font-medium bg-transparent border-none outline-none focus:underline flex-1 min-w-0"
-              placeholder="Document title"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowMobileStats(true)}
-              className="p-2"
-            >
-              <FileText className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowMobileDocuments(true)}
-              className="p-2"
-            >
-              <FolderOpen className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <MobileHeader
+          activeProject={activeProject}
+          onProjectSelect={handleProjectSelect}
+          fileName={fileName}
+          setFileName={setFileName}
+          showStats={showStats}
+          showDocumentsList={showDocumentsList}
+          onToggleStats={() => setShowStats(!showStats)}
+          onToggleDocuments={() => setShowDocumentsList(!showDocumentsList)}
+          onNewDocument={handleNewDocument}
+          onLoad={triggerFileInput}
+          onSave={saveToDatabase}
+          onExport={handleExport}
+          onToggleFocus={() => setIsDistractionFree(!isDistractionFree)}
+          onShowHelp={() => setShowHelp(!showHelp)}
+          onShowMobileStats={() => setShowMobileStats(true)}
+          onShowMobileDocuments={() => setShowMobileDocuments(true)}
+        />
       )}
 
       <div className="flex flex-1 overflow-hidden">
@@ -511,79 +326,7 @@ export function WritingEditor() {
           <div className="hidden lg:block w-80 border-l bg-muted/10 p-6 overflow-y-auto">
             <div className="space-y-6">
               {/* Writing Statistics */}
-              {showStats && (
-                <div>
-                  <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Writing Statistics
-                  </h3>
-
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-3 bg-background rounded-lg border">
-                        <div className="text-2xl font-bold text-primary">
-                          {stats.words}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Words
-                        </div>
-                      </div>
-
-                      <div className="text-center p-3 bg-background rounded-lg border">
-                        <div className="text-2xl font-bold text-primary">
-                          {stats.characters}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Characters
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-3 bg-background rounded-lg border">
-                        <div className="text-2xl font-bold text-primary">
-                          {stats.paragraphs}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Paragraphs
-                        </div>
-                      </div>
-
-                      <div className="text-center p-3 bg-background rounded-lg border">
-                        <div className="text-2xl font-bold text-primary">
-                          {stats.readingTime}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Min Read
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t">
-                      <h4 className="font-medium mb-2">Session Goals</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Daily Target:</span>
-                          <span className="text-muted-foreground">
-                            500 words
-                          </span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full transition-all duration-300"
-                            style={{
-                              width: `${Math.min((stats.words / 500) * 100, 100)}%`,
-                            }}
-                          />
-                        </div>
-                        <div className="text-xs text-muted-foreground text-center">
-                          {Math.round((stats.words / 500) * 100)}% complete
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {showStats && <WritingStats stats={stats} />}
 
               {/* Document List */}
               {showDocumentsList && (
@@ -620,69 +363,12 @@ export function WritingEditor() {
         ref={fileInputRef}
         type="file"
         accept=".txt,.md,.doc,.docx"
-        onChange={handleLoad}
+        onChange={handleLoadFile}
         className="hidden"
       />
 
       {/* Help Overlay */}
-      {showHelp && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => setShowHelp(false)}
-        >
-          <div
-            className="bg-background p-8 rounded-lg shadow-lg max-w-md w-full mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-xl font-semibold mb-4">Keyboard Shortcuts</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Save document</span>
-                <kbd className="px-2 py-1 bg-muted rounded text-sm">Ctrl+S</kbd>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Load document</span>
-                <kbd className="px-2 py-1 bg-muted rounded text-sm">Ctrl+O</kbd>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Toggle statistics</span>
-                <kbd className="px-2 py-1 bg-muted rounded text-sm">
-                  Ctrl+Shift+S
-                </kbd>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Toggle documents</span>
-                <kbd className="px-2 py-1 bg-muted rounded text-sm">
-                  Ctrl+Shift+D
-                </kbd>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Toggle fullscreen</span>
-                <kbd className="px-2 py-1 bg-muted rounded text-sm">F11</kbd>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Focus mode</span>
-                <kbd className="px-2 py-1 bg-muted rounded text-sm">
-                  Ctrl+Shift+F
-                </kbd>
-              </div>
-            </div>
-            <div className="mt-6 pt-4 border-t">
-              <h4 className="font-medium mb-2">Features</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Auto-save every 5 seconds</li>
-                <li>• Real-time word count and reading time</li>
-                <li>• Daily writing goal tracking</li>
-                <li>• Distraction-free writing environment</li>
-                <li>• Dark/light theme support</li>
-              </ul>
-            </div>
-            <Button className="w-full mt-4" onClick={() => setShowHelp(false)}>
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
+      <HelpOverlay isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
       {/* Mobile Stats Modal */}
       <MobileModal
@@ -690,60 +376,7 @@ export function WritingEditor() {
         onClose={() => setShowMobileStats(false)}
         title="Writing Statistics"
       >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 bg-background rounded-lg border">
-              <div className="text-2xl font-bold text-primary">
-                {stats.words}
-              </div>
-              <div className="text-sm text-muted-foreground">Words</div>
-            </div>
-
-            <div className="text-center p-3 bg-background rounded-lg border">
-              <div className="text-2xl font-bold text-primary">
-                {stats.characters}
-              </div>
-              <div className="text-sm text-muted-foreground">Characters</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 bg-background rounded-lg border">
-              <div className="text-2xl font-bold text-primary">
-                {stats.paragraphs}
-              </div>
-              <div className="text-sm text-muted-foreground">Paragraphs</div>
-            </div>
-
-            <div className="text-center p-3 bg-background rounded-lg border">
-              <div className="text-2xl font-bold text-primary">
-                {stats.readingTime}
-              </div>
-              <div className="text-sm text-muted-foreground">Min Read</div>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t">
-            <h4 className="font-medium mb-2">Session Goals</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Daily Target:</span>
-                <span className="text-muted-foreground">500 words</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${Math.min((stats.words / 500) * 100, 100)}%`,
-                  }}
-                />
-              </div>
-              <div className="text-xs text-muted-foreground text-center">
-                {Math.round((stats.words / 500) * 100)}% complete
-              </div>
-            </div>
-          </div>
-        </div>
+        <WritingStats stats={stats} showTitle={false} />
       </MobileModal>
 
       {/* Mobile Documents Modal */}
