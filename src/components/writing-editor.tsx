@@ -63,6 +63,7 @@ export function WritingEditor() {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previousContentRef = useRef<string>("");
 
   const calculateStats = (text: string): WritingStats => {
     const words = text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -78,13 +79,17 @@ export function WritingEditor() {
   }, [content]);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (content && !isSaving && activeProject) {
-        await saveToDatabase();
-      }
-    }, 5000); // Auto-save every 5 seconds
-
-    return () => clearInterval(interval);
+    // Save only when content changes, not on a timer
+    if (
+      content &&
+      content !== previousContentRef.current &&
+      !isSaving &&
+      activeProject &&
+      previousContentRef.current !== "" // Don't save on initial load
+    ) {
+      saveToDatabase();
+    }
+    previousContentRef.current = content;
   }, [content, fileName, currentDocumentId, activeProject, isSaving]);
 
   useEffect(() => {
