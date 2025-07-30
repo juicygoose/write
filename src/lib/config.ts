@@ -1,0 +1,1 @@
+export const isSignupEnabled = process.env.ENABLE_SIGNUP === 'true';

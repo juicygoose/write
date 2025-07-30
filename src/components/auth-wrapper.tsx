@@ -5,9 +5,10 @@ import { SignIn } from "@stackframe/stack";
 
 interface AuthWrapperProps {
   children: React.ReactNode;
+  isSignupEnabled?: boolean;
 }
 
-export function AuthWrapper({ children }: AuthWrapperProps) {
+export function AuthWrapper({ children, isSignupEnabled = true }: AuthWrapperProps) {
   const user = useUser();
 
   if (!user) {
@@ -21,6 +22,13 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
             </p>
           </div>
           <SignIn />
+          {!isSignupEnabled && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground text-center">
+                New user registration is currently disabled
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
