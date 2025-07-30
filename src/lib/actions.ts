@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { stackServerApp } from '@/stack'
 import { 
   getAllDocuments, 
   getDocumentById, 
@@ -17,7 +18,8 @@ import {
 
 export async function getDocuments(): Promise<Document[]> {
   try {
-    const documents = await getAllDocuments()
+    const user = await stackServerApp.getUser({ or: 'throw' })
+    const documents = await getAllDocuments(user.id)
     return documents
   } catch (error) {
     console.error('Failed to fetch documents:', error)
@@ -27,7 +29,8 @@ export async function getDocuments(): Promise<Document[]> {
 
 export async function getDocument(id: string): Promise<Document | null> {
   try {
-    const document = await getDocumentById(id)
+    const user = await stackServerApp.getUser({ or: 'throw' })
+    const document = await getDocumentById(id, user.id)
     return document
   } catch (error) {
     console.error('Failed to fetch document:', error)
@@ -42,18 +45,19 @@ export async function saveDocument(
   id?: string
 ): Promise<Document> {
   try {
+    const user = await stackServerApp.getUser({ or: 'throw' })
     let document: Document
 
     if (id) {
       // Update existing document
-      const updatedDocument = await updateDocument(id, title, content)
+      const updatedDocument = await updateDocument(id, title, content, user.id)
       if (!updatedDocument) {
         throw new Error('Document not found')
       }
       document = updatedDocument
     } else {
       // Create new document
-      document = await createDocument(title, content, projectId)
+      document = await createDocument(title, content, projectId, user.id)
     }
 
     revalidatePath('/')
@@ -66,7 +70,8 @@ export async function saveDocument(
 
 export async function removeDocument(id: string): Promise<void> {
   try {
-    const success = await deleteDocument(id)
+    const user = await stackServerApp.getUser({ or: 'throw' })
+    const success = await deleteDocument(id, user.id)
     if (!success) {
       throw new Error('Document not found')
     }
@@ -79,7 +84,8 @@ export async function removeDocument(id: string): Promise<void> {
 
 export async function getProjects(): Promise<Project[]> {
   try {
-    const projects = await getAllProjects()
+    const user = await stackServerApp.getUser({ or: 'throw' })
+    const projects = await getAllProjects(user.id)
     return projects
   } catch (error) {
     console.error('Failed to fetch projects:', error)
@@ -89,7 +95,8 @@ export async function getProjects(): Promise<Project[]> {
 
 export async function getProject(id: string): Promise<Project | null> {
   try {
-    const project = await getProjectById(id)
+    const user = await stackServerApp.getUser({ or: 'throw' })
+    const project = await getProjectById(id, user.id)
     return project
   } catch (error) {
     console.error('Failed to fetch project:', error)
@@ -103,7 +110,8 @@ export async function saveProject(
   color: string = '#3b82f6'
 ): Promise<Project> {
   try {
-    const project = await createProject(name, description, color)
+    const user = await stackServerApp.getUser({ or: 'throw' })
+    const project = await createProject(name, description, color, user.id)
     revalidatePath('/')
     return project
   } catch (error) {
@@ -114,10 +122,11 @@ export async function saveProject(
 
 export async function getProjectDocuments(projectId: string): Promise<Document[]> {
   try {
-    const documents = await getDocumentsByProject(projectId)
+    const user = await stackServerApp.getUser({ or: 'throw' })
+    const documents = await getDocumentsByProject(projectId, user.id)
     return documents
   } catch (error) {
     console.error('Failed to fetch project documents:', error)
-    throw new Error('Failed to fetch project documents')
+    throw new Error('Failed to fetch project')
   }
 }

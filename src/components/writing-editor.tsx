@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { DocumentList } from "@/components/document-list";
 import { SidebarDocumentList } from "@/components/sidebar-document-list";
 import { ProjectSelector } from "@/components/project-selector";
+import { UserMenu } from "@/components/user-menu";
 import { saveDocument, getProjectDocuments, getProjects, getDocument } from "@/lib/actions";
 import { loadPreferences, savePreference } from "@/lib/preferences";
 import type { Document, Project } from "@/lib/database";
@@ -328,6 +329,7 @@ export function WritingEditor() {
           </div>
 
           <div className="flex items-center gap-2">
+            <UserMenu />
             <ThemeToggle />
 
             <Button

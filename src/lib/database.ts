@@ -9,6 +9,7 @@ export type Project = {
   color: string
   created_at: string
   updated_at: string
+  user_id: string
 }
 
 export type Document = {
@@ -20,12 +21,14 @@ export type Document = {
   project_id: string
   created_at: string
   updated_at: string
+  user_id: string
 }
 
-export async function getAllProjects(): Promise<Project[]> {
+export async function getAllProjects(userId: string): Promise<Project[]> {
   try {
     const projects = await sql`
       SELECT * FROM projects 
+      WHERE user_id = ${userId}
       ORDER BY updated_at DESC
     `
     return projects as Project[]
@@ -35,11 +38,11 @@ export async function getAllProjects(): Promise<Project[]> {
   }
 }
 
-export async function getProjectById(id: string): Promise<Project | null> {
+export async function getProjectById(id: string, userId: string): Promise<Project | null> {
   try {
     const projects = await sql`
       SELECT * FROM projects 
-      WHERE id = ${id}
+      WHERE id = ${id} AND user_id = ${userId}
     `
     return projects[0] as Project || null
   } catch (error) {
@@ -51,12 +54,13 @@ export async function getProjectById(id: string): Promise<Project | null> {
 export async function createProject(
   name: string, 
   description: string = '',
-  color: string = '#3b82f6'
+  color: string = '#3b82f6',
+  userId: string
 ): Promise<Project> {
   try {
     const projects = await sql`
-      INSERT INTO projects (name, description, color)
-      VALUES (${name}, ${description}, ${color})
+      INSERT INTO projects (name, description, color, user_id)
+      VALUES (${name}, ${description}, ${color}, ${userId})
       RETURNING *
     `
     return projects[0] as Project
@@ -66,10 +70,11 @@ export async function createProject(
   }
 }
 
-export async function getAllDocuments(): Promise<Document[]> {
+export async function getAllDocuments(userId: string): Promise<Document[]> {
   try {
     const documents = await sql`
       SELECT * FROM documents 
+      WHERE user_id = ${userId}
       ORDER BY updated_at DESC
     `
     return documents as Document[]
@@ -79,11 +84,11 @@ export async function getAllDocuments(): Promise<Document[]> {
   }
 }
 
-export async function getDocumentsByProject(projectId: string): Promise<Document[]> {
+export async function getDocumentsByProject(projectId: string, userId: string): Promise<Document[]> {
   try {
     const documents = await sql`
       SELECT * FROM documents 
-      WHERE project_id = ${projectId}
+      WHERE project_id = ${projectId} AND user_id = ${userId}
       ORDER BY updated_at DESC
     `
     return documents as Document[]
@@ -93,11 +98,11 @@ export async function getDocumentsByProject(projectId: string): Promise<Document
   }
 }
 
-export async function getDocumentById(id: string): Promise<Document | null> {
+export async function getDocumentById(id: string, userId: string): Promise<Document | null> {
   try {
     const documents = await sql`
       SELECT * FROM documents 
-      WHERE id = ${id}
+      WHERE id = ${id} AND user_id = ${userId}
     `
     return documents[0] as Document || null
   } catch (error) {
@@ -109,15 +114,16 @@ export async function getDocumentById(id: string): Promise<Document | null> {
 export async function createDocument(
   title: string, 
   content: string,
-  projectId: string
+  projectId: string,
+  userId: string
 ): Promise<Document> {
   try {
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0
     const characterCount = content.length
 
     const documents = await sql`
-      INSERT INTO documents (title, content, word_count, character_count, project_id)
-      VALUES (${title}, ${content}, ${wordCount}, ${characterCount}, ${projectId})
+      INSERT INTO documents (title, content, word_count, character_count, project_id, user_id)
+      VALUES (${title}, ${content}, ${wordCount}, ${characterCount}, ${projectId}, ${userId})
       RETURNING *
     `
     return documents[0] as Document
@@ -130,7 +136,8 @@ export async function createDocument(
 export async function updateDocument(
   id: string,
   title: string,
-  content: string
+  content: string,
+  userId: string
 ): Promise<Document | null> {
   try {
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0
@@ -139,7 +146,7 @@ export async function updateDocument(
     const documents = await sql`
       UPDATE documents 
       SET title = ${title}, content = ${content}, word_count = ${wordCount}, character_count = ${characterCount}
-      WHERE id = ${id}
+      WHERE id = ${id} AND user_id = ${userId}
       RETURNING *
     `
     return documents[0] as Document || null
@@ -149,11 +156,11 @@ export async function updateDocument(
   }
 }
 
-export async function deleteDocument(id: string): Promise<boolean> {
+export async function deleteDocument(id: string, userId: string): Promise<boolean> {
   try {
     await sql`
       DELETE FROM documents 
-      WHERE id = ${id}
+      WHERE id = ${id} AND user_id = ${userId}
     `
     return true
   } catch (error) {
