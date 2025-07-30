@@ -7,7 +7,14 @@ import { DocumentList } from "@/components/document-list";
 import { SidebarDocumentList } from "@/components/sidebar-document-list";
 import { ProjectSelector } from "@/components/project-selector";
 import { UserMenu } from "@/components/user-menu";
-import { saveDocument, getProjectDocuments, getProjects, getDocument } from "@/lib/actions";
+import { MobileModal } from "@/components/mobile-modal";
+import { MobileMenu } from "@/components/mobile-menu";
+import {
+  saveDocument,
+  getProjectDocuments,
+  getProjects,
+  getDocument,
+} from "@/lib/actions";
 import { loadPreferences, savePreference } from "@/lib/preferences";
 import type { Document, Project } from "@/lib/database";
 import {
@@ -40,6 +47,8 @@ export function WritingEditor() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
+  const [showMobileStats, setShowMobileStats] = useState(false);
+  const [showMobileDocuments, setShowMobileDocuments] = useState(false);
   const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(
     null,
   );
@@ -91,69 +100,78 @@ export function WritingEditor() {
 
     // Use preferences if available, otherwise fall back to legacy localStorage
     if (preferences.lastContent || savedContent) {
-      setContent(preferences.lastContent || savedContent || '');
+      setContent(preferences.lastContent || savedContent || "");
     }
-    if (preferences.lastFileName !== 'Untitled Document' || savedFileName) {
-      setFileName(preferences.lastFileName || savedFileName || 'Untitled Document');
+    if (preferences.lastFileName !== "Untitled Document" || savedFileName) {
+      setFileName(
+        preferences.lastFileName || savedFileName || "Untitled Document",
+      );
     }
   }, []);
 
   // Save preferences when states change
   useEffect(() => {
-    savePreference('showStats', showStats);
+    savePreference("showStats", showStats);
   }, [showStats]);
 
   useEffect(() => {
-    savePreference('showDocumentsList', showDocumentsList);
+    savePreference("showDocumentsList", showDocumentsList);
   }, [showDocumentsList]);
 
   useEffect(() => {
-    savePreference('isDistractionFree', isDistractionFree);
+    savePreference("isDistractionFree", isDistractionFree);
   }, [isDistractionFree]);
 
   useEffect(() => {
     if (currentDocumentId) {
-      savePreference('currentDocumentId', currentDocumentId);
+      savePreference("currentDocumentId", currentDocumentId);
     }
   }, [currentDocumentId]);
 
   useEffect(() => {
     if (activeProject) {
-      savePreference('currentProjectId', activeProject.id);
+      savePreference("currentProjectId", activeProject.id);
     }
   }, [activeProject]);
 
   useEffect(() => {
-    savePreference('lastContent', content);
+    savePreference("lastContent", content);
   }, [content]);
 
   useEffect(() => {
-    savePreference('lastFileName', fileName);
+    savePreference("lastFileName", fileName);
   }, [fileName]);
 
   // Restore saved project and document after component mounts
   useEffect(() => {
     const restoreSavedState = async () => {
       const preferences = loadPreferences();
-      
+
       try {
         // First load the saved project if it exists
         if (preferences.currentProjectId) {
           const projects = await getProjects();
-          const savedProject = projects.find(p => p.id === preferences.currentProjectId);
-          
+          const savedProject = projects.find(
+            (p) => p.id === preferences.currentProjectId,
+          );
+
           if (savedProject) {
             setActiveProject(savedProject);
-            
+
             // Then try to load the saved document from that project
             if (preferences.currentDocumentId) {
-              const savedDocument = await getDocument(preferences.currentDocumentId);
-              if (savedDocument && savedDocument.project_id === savedProject.id) {
+              const savedDocument = await getDocument(
+                preferences.currentDocumentId,
+              );
+              if (
+                savedDocument &&
+                savedDocument.project_id === savedProject.id
+              ) {
                 handleDocumentSelect(savedDocument);
                 return; // Successfully restored saved document
               }
             }
-            
+
             // If no saved document or it doesn't exist, load the most recent from project
             const documents = await getProjectDocuments(savedProject.id);
             if (documents.length > 0) {
@@ -162,7 +180,7 @@ export function WritingEditor() {
           }
         }
       } catch (error) {
-        console.error('Failed to restore saved state:', error);
+        console.error("Failed to restore saved state:", error);
       }
     };
 
@@ -306,9 +324,9 @@ export function WritingEditor() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
+      {/* Desktop Header */}
       {!isDistractionFree && (
-        <div className="flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="hidden lg:flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex items-center gap-4">
             <ProjectSelector
               activeProject={activeProject}
@@ -417,6 +435,54 @@ export function WritingEditor() {
         </div>
       )}
 
+      {/* Mobile Header */}
+      {!isDistractionFree && (
+        <div className="lg:hidden flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex items-center gap-2">
+            <MobileMenu
+              activeProject={activeProject}
+              onProjectSelect={handleProjectSelect}
+              showStats={showStats}
+              showDocumentsList={showDocumentsList}
+              onToggleStats={() => setShowMobileStats(true)}
+              onToggleDocuments={() => setShowMobileDocuments(true)}
+              onNewDocument={handleNewDocument}
+              onLoad={() => fileInputRef.current?.click()}
+              onSave={handleSave}
+              onExport={handleExport}
+              onToggleFocus={() => setIsDistractionFree(!isDistractionFree)}
+              onShowHelp={() => setShowHelp(!showHelp)}
+            />
+            <input
+              type="text"
+              value={fileName}
+              onChange={(e) => setFileName(e.target.value)}
+              className="text-base font-medium bg-transparent border-none outline-none focus:underline flex-1 min-w-0"
+              placeholder="Document title"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMobileStats(true)}
+              className="p-2"
+            >
+              <FileText className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMobileDocuments(true)}
+              className="p-2"
+            >
+              <FolderOpen className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         {/* Main Editor */}
         <div className="flex-1 flex flex-col">
@@ -426,7 +492,7 @@ export function WritingEditor() {
             onChange={(e) => setContent(e.target.value)}
             placeholder="Start writing your story..."
             className={`flex-1 resize-none outline-none bg-background text-foreground text-lg leading-relaxed font-serif transition-all duration-300 ${
-              isDistractionFree ? "p-16" : "p-8"
+              isDistractionFree ? "p-8 lg:p-16" : "p-4 lg:p-8"
             }`}
             style={{
               lineHeight: "1.8",
@@ -435,9 +501,9 @@ export function WritingEditor() {
           />
         </div>
 
-        {/* Sidebar */}
+        {/* Desktop Sidebar */}
         {!isDistractionFree && (showStats || showDocumentsList) && (
-          <div className="w-80 border-l bg-muted/10 p-6 overflow-y-auto">
+          <div className="hidden lg:block w-80 border-l bg-muted/10 p-6 overflow-y-auto">
             <div className="space-y-6">
               {/* Writing Statistics */}
               {showStats && (
@@ -613,6 +679,84 @@ export function WritingEditor() {
         </div>
       )}
 
+      {/* Mobile Stats Modal */}
+      <MobileModal
+        isOpen={showMobileStats}
+        onClose={() => setShowMobileStats(false)}
+        title="Writing Statistics"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center p-3 bg-background rounded-lg border">
+              <div className="text-2xl font-bold text-primary">
+                {stats.words}
+              </div>
+              <div className="text-sm text-muted-foreground">Words</div>
+            </div>
+
+            <div className="text-center p-3 bg-background rounded-lg border">
+              <div className="text-2xl font-bold text-primary">
+                {stats.characters}
+              </div>
+              <div className="text-sm text-muted-foreground">Characters</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center p-3 bg-background rounded-lg border">
+              <div className="text-2xl font-bold text-primary">
+                {stats.paragraphs}
+              </div>
+              <div className="text-sm text-muted-foreground">Paragraphs</div>
+            </div>
+
+            <div className="text-center p-3 bg-background rounded-lg border">
+              <div className="text-2xl font-bold text-primary">
+                {stats.readingTime}
+              </div>
+              <div className="text-sm text-muted-foreground">Min Read</div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t">
+            <h4 className="font-medium mb-2">Session Goals</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Daily Target:</span>
+                <span className="text-muted-foreground">500 words</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min((stats.words / 500) * 100, 100)}%`,
+                  }}
+                />
+              </div>
+              <div className="text-xs text-muted-foreground text-center">
+                {Math.round((stats.words / 500) * 100)}% complete
+              </div>
+            </div>
+          </div>
+        </div>
+      </MobileModal>
+
+      {/* Mobile Documents Modal */}
+      <MobileModal
+        isOpen={showMobileDocuments}
+        onClose={() => setShowMobileDocuments(false)}
+        title="Documents"
+      >
+        <SidebarDocumentList
+          onDocumentSelect={(doc) => {
+            handleDocumentSelect(doc);
+            setShowMobileDocuments(false);
+          }}
+          currentDocumentId={currentDocumentId}
+          activeProject={activeProject}
+        />
+      </MobileModal>
+
       {/* Documents List */}
       {showDocuments && (
         <DocumentList
@@ -623,4 +767,3 @@ export function WritingEditor() {
     </div>
   );
 }
-
