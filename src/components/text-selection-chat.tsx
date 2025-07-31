@@ -10,8 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Send, Copy } from "lucide-react";
-import { useMemo } from "react";
+import { Send, Copy, Trash2 } from "lucide-react";
+import { useMemo, useRef, useEffect } from "react";
 
 interface TextSelectionChatProps {
   selectedText: string;
@@ -29,12 +29,26 @@ export function TextSelectionChat({
     return isOpen ? selectedText : "";
   }, [isOpen, selectedText]);
 
-  const { messages, input, handleInputChange, handleSubmit, status } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, status, setMessages } = useChat({
     api: "/api/chat",
     body: {
       selectedText: capturedText,
     },
   });
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const clearChat = () => {
+    setMessages([]);
+  };
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -48,10 +62,25 @@ export function TextSelectionChat({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md h-96 flex flex-col" data-text-selection-chat>
         <DialogHeader>
-          <DialogTitle>AI Assistant</DialogTitle>
-          <DialogDescription className="truncate">
-            About: &ldquo;{capturedText.substring(0, 30)}&hellip;&rdquo;
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <DialogTitle>AI Assistant</DialogTitle>
+              <DialogDescription className="truncate">
+                About: &ldquo;{capturedText.substring(0, 30)}&hellip;&rdquo;
+              </DialogDescription>
+            </div>
+            {messages.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearChat}
+                className="ml-2 flex-shrink-0"
+                title="Clear chat"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         {/* Messages */}
@@ -113,6 +142,7 @@ export function TextSelectionChat({
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
