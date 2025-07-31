@@ -9,8 +9,10 @@ import { WritingStats } from "@/components/writing-stats";
 import { EditorHeader } from "@/components/editor-header";
 import { MobileHeader } from "@/components/mobile-header";
 import { HelpOverlay } from "@/components/help-overlay";
+import { TextSelectionChat } from "@/components/text-selection-chat";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useDocumentOperations } from "@/hooks/use-document-operations";
+import { useTextSelection } from "@/hooks/use-text-selection";
 import {
   getProjectDocuments,
   getProjects,
@@ -38,6 +40,7 @@ export function WritingEditor() {
   const [showDocuments, setShowDocuments] = useState(false);
   const [showMobileStats, setShowMobileStats] = useState(false);
   const [showMobileDocuments, setShowMobileDocuments] = useState(false);
+  const [showAIChat, setShowAIChat] = useState(false);
   const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(
     null,
   );
@@ -51,6 +54,7 @@ export function WritingEditor() {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previousContentRef = useRef<string>("");
+  const { selectedText, clearSelection } = useTextSelection(textareaRef);
 
   const {
     isSaving,
@@ -256,6 +260,24 @@ export function WritingEditor() {
     });
   };
 
+  const handleAIChat = () => {
+    setShowAIChat(true);
+  };
+
+  const handleCloseChatAndClearSelection = () => {
+    setShowAIChat(false);
+    clearSelection();
+    
+    // Clear the actual text selection in the textarea
+    if (textareaRef.current) {
+      textareaRef.current.setSelectionRange(
+        textareaRef.current.selectionStart,
+        textareaRef.current.selectionStart
+      );
+      textareaRef.current.focus();
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Desktop Header */}
@@ -278,6 +300,8 @@ export function WritingEditor() {
           onLoad={triggerFileInput}
           onSave={saveToDatabase}
           onExport={handleExport}
+          selectedText={selectedText}
+          onAIChat={handleAIChat}
         />
       )}
 
@@ -300,6 +324,8 @@ export function WritingEditor() {
           onShowHelp={() => setShowHelp(!showHelp)}
           onShowMobileStats={() => setShowMobileStats(true)}
           onShowMobileDocuments={() => setShowMobileDocuments(true)}
+          selectedText={selectedText}
+          onAIChat={handleAIChat}
         />
       )}
 
@@ -402,6 +428,13 @@ export function WritingEditor() {
           onClose={() => setShowDocuments(false)}
         />
       )}
+
+      {/* Text Selection Chat */}
+      <TextSelectionChat
+        selectedText={selectedText}
+        isOpen={showAIChat}
+        onClose={handleCloseChatAndClearSelection}
+      />
     </div>
   );
 }

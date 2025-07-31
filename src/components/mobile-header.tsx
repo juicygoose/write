@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { MobileMenu } from "@/components/mobile-menu";
 import type { Project } from "@/lib/database";
-import { FileText, FolderOpen } from "lucide-react";
+import { FileText, FolderOpen, MessageCircle } from "lucide-react";
 
 interface MobileHeaderProps {
   activeProject: Project | null;
@@ -20,6 +20,8 @@ interface MobileHeaderProps {
   onShowHelp: () => void;
   onShowMobileStats: () => void;
   onShowMobileDocuments: () => void;
+  selectedText?: string;
+  onAIChat?: () => void;
 }
 
 export function MobileHeader({
@@ -39,6 +41,8 @@ export function MobileHeader({
   onShowHelp,
   onShowMobileStats,
   onShowMobileDocuments,
+  selectedText,
+  onAIChat,
 }: MobileHeaderProps) {
   return (
     <div className="lg:hidden flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -67,6 +71,16 @@ export function MobileHeader({
       </div>
 
       <div className="flex items-center gap-2">
+        {selectedText && onAIChat && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onAIChat}
+            className="p-2 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+          >
+            <MessageCircle className="h-4 w-4" />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"

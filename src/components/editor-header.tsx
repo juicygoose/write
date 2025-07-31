@@ -13,6 +13,7 @@ import {
   Plus,
   FolderOpen,
   Focus,
+  MessageCircle,
 } from "lucide-react";
 
 interface EditorHeaderProps {
@@ -33,6 +34,8 @@ interface EditorHeaderProps {
   onLoad: () => void;
   onSave: () => void;
   onExport: () => void;
+  selectedText?: string;
+  onAIChat?: () => void;
 }
 
 export function EditorHeader({
@@ -53,6 +56,8 @@ export function EditorHeader({
   onLoad,
   onSave,
   onExport,
+  selectedText,
+  onAIChat,
 }: EditorHeaderProps) {
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -82,6 +87,18 @@ export function EditorHeader({
       <div className="flex items-center gap-2">
         <UserMenu />
         <ThemeToggle />
+
+        {selectedText && onAIChat && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onAIChat}
+            className="flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Ask AI
+          </Button>
+        )}
 
         <Button
           variant="ghost"
