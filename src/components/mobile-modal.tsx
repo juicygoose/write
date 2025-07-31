@@ -1,7 +1,11 @@
 'use client'
 
-import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface MobileModalProps {
   isOpen: boolean;
@@ -11,31 +15,16 @@ interface MobileModalProps {
 }
 
 export function MobileModal({ isOpen, onClose, title, children }: MobileModalProps) {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 lg:hidden">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-background border-t rounded-t-xl max-h-[80vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="lg:hidden fixed inset-x-0 bottom-0 top-auto translate-x-0 translate-y-0 rounded-t-xl rounded-b-none border-t max-h-[80vh] w-full max-w-none">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="text-lg font-semibold text-left">{title}</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto -mx-6 -mb-6 px-6 pb-6">
           {children}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

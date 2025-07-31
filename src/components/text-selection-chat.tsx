@@ -2,7 +2,15 @@
 
 import { useChat } from "@ai-sdk/react";
 import { Button } from "@/components/ui/button";
-import { X, Send, Copy } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Send, Copy } from "lucide-react";
 import { useMemo } from "react";
 
 interface TextSelectionChatProps {
@@ -19,7 +27,7 @@ export function TextSelectionChat({
   // Capture the selected text when modal first opens and keep it stable
   const capturedText = useMemo(() => {
     return isOpen ? selectedText : "";
-  }, [isOpen]);
+  }, [isOpen, selectedText]);
 
   const { messages, input, handleInputChange, handleSubmit, status } = useChat({
     api: "/api/chat",
@@ -36,31 +44,18 @@ export function TextSelectionChat({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4">
-      <div
-        className="bg-background border rounded-lg shadow-xl w-full max-w-md h-96 flex flex-col animate-in fade-in-0 zoom-in-95"
-        data-text-selection-chat
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <h3 className="font-semibold">AI Assistant</h3>
-            <p className="text-sm text-muted-foreground truncate">
-              {'About: "'}
-              {capturedText.substring(0, 30)}
-              {'..."'}
-            </p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md h-96 flex flex-col" data-text-selection-chat>
+        <DialogHeader>
+          <DialogTitle>AI Assistant</DialogTitle>
+          <DialogDescription className="truncate">
+            About: &ldquo;{capturedText.substring(0, 30)}&hellip;&rdquo;
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto space-y-4 -mx-6 px-6">
           {messages.length === 0 && (
             <div className="text-center text-muted-foreground text-sm">
               Ask me anything about your selected text!
@@ -121,14 +116,14 @@ export function TextSelectionChat({
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSubmit} className="p-4 border-t">
+        <form onSubmit={handleSubmit} className="pt-4 border-t -mx-6 px-6">
           <div className="flex space-x-2">
-            <input
+            <Input
               value={input}
               onChange={handleInputChange}
               placeholder="Ask about the selected text..."
-              className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={status === "streaming"}
+              className="flex-1"
             />
             <Button
               type="submit"
@@ -139,7 +134,7 @@ export function TextSelectionChat({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

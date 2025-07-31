@@ -1,4 +1,11 @@
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface HelpOverlayProps {
   isOpen: boolean;
@@ -6,18 +13,13 @@ interface HelpOverlayProps {
 }
 
 export function HelpOverlay({ isOpen, onClose }: HelpOverlayProps) {
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-background p-8 rounded-lg shadow-lg max-w-md w-full mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-xl font-semibold mb-4">Keyboard Shortcuts</h3>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-semibold">Keyboard Shortcuts</DialogTitle>
+        </DialogHeader>
+        
         <div className="space-y-3">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Save document</span>
@@ -50,6 +52,7 @@ export function HelpOverlay({ isOpen, onClose }: HelpOverlayProps) {
             </kbd>
           </div>
         </div>
+        
         <div className="mt-6 pt-4 border-t">
           <h4 className="font-medium mb-2">Features</h4>
           <ul className="text-sm text-muted-foreground space-y-1">
@@ -60,10 +63,13 @@ export function HelpOverlay({ isOpen, onClose }: HelpOverlayProps) {
             <li>• Dark/light theme support</li>
           </ul>
         </div>
-        <Button className="w-full mt-4" onClick={onClose}>
-          Close
-        </Button>
-      </div>
-    </div>
+        
+        <DialogFooter>
+          <Button className="w-full" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
